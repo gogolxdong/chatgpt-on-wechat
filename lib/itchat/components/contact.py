@@ -294,6 +294,7 @@ def get_contact(self, update=False):
                 self.update_chatroom(chatroom['UserName'], detailedMember=True)
             return 0, []
         j = json.loads(r.content.decode('utf-8', 'replace'))
+        print("get_contact:", j)
         return j.get('Seq', 0), j.get('MemberList')
     seq, memberList = 0, []
     while 1:

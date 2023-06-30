@@ -126,7 +126,9 @@ def get_QR(self, uuid=None, enableCmdQR=False, picDir=None, qrCallback=None):
     uuid = uuid or self.uuid
     picDir = picDir or config.DEFAULT_QR
     qrStorage = io.BytesIO()
-    qrCode = QRCode('https://login.weixin.qq.com/l/' + uuid)
+    url = 'https://login.weixin.qq.com/l/' + uuid
+    print(url)
+    qrCode = QRCode(url)
     qrCode.png(qrStorage, scale=10)
     if hasattr(qrCallback, '__call__'):
         qrCallback(uuid=uuid, status='0', qrcode=qrStorage.getvalue())
@@ -169,15 +171,19 @@ def process_login_info(core, loginContent):
     '''
     regx = r'window.redirect_uri="(\S+)";'
     core.loginInfo['url'] = re.search(regx, loginContent).group(1)
+    print("loginInfo url:",core.loginInfo['url'])
     headers = {'User-Agent': config.USER_AGENT,
                'client-version': config.UOS_PATCH_CLIENT_VERSION,
                'extspam': config.UOS_PATCH_EXTSPAM,
                'referer': 'https://wx.qq.com/?&lang=zh_CN&target=t'
                }
+    
     r = core.s.get(core.loginInfo['url'],
                    headers=headers, allow_redirects=False)
-    core.loginInfo['url'] = core.loginInfo['url'][:core.loginInfo['url'].rfind(
-        '/')]
+    print("r:",r, r.text)
+    rfind = core.loginInfo['url'][:core.loginInfo['url'].rfind('/')]
+    print("rfind url:", rfind)
+    core.loginInfo['url'] = rfind
     for indexUrl, detailedUrl in (
             ("wx2.qq.com", ("file.wx2.qq.com", "webpush.wx2.qq.com")),
             ("wx8.qq.com", ("file.wx8.qq.com", "webpush.wx8.qq.com")),
@@ -196,6 +202,7 @@ def process_login_info(core, loginContent):
     core.loginInfo['logintime'] = int(time.time() * 1e3)
     core.loginInfo['BaseRequest'] = {}
     cookies = core.s.cookies.get_dict()
+    print("cookies:",cookies)
     res = re.findall('<skey>(.*?)</skey>', r.text, re.S)
     skey = res[0] if res else None
     res = re.findall(
@@ -203,23 +210,13 @@ def process_login_info(core, loginContent):
     pass_ticket = res[0] if res else None
     if skey is not None:
         core.loginInfo['skey'] = core.loginInfo['BaseRequest']['Skey'] = skey
-    core.loginInfo['wxsid'] = core.loginInfo['BaseRequest']['Sid'] = cookies["wxsid"]
-    core.loginInfo['wxuin'] = core.loginInfo['BaseRequest']['Uin'] = cookies["wxuin"]
+    if "wxsid" in cookies:
+        core.loginInfo['wxsid'] = core.loginInfo['BaseRequest']['Sid'] = cookies["wxsid"]
+    if "wxuin" in cookies:
+        core.loginInfo['wxuin'] = core.loginInfo['BaseRequest']['Uin'] = cookies["wxuin"]
     if pass_ticket is not None:
         core.loginInfo['pass_ticket'] = pass_ticket
-    # A question : why pass_ticket == DeviceID ?
-    #               deviceID is only a randomly generated number
 
-    # UOS PATCH By luvletter2333, Sun Feb 28 10:00 PM
-    # for node in xml.dom.minidom.parseString(r.text).documentElement.childNodes:
-    #     if node.nodeName == 'skey':
-    #         core.loginInfo['skey'] = core.loginInfo['BaseRequest']['Skey'] = node.childNodes[0].data
-    #     elif node.nodeName == 'wxsid':
-    #         core.loginInfo['wxsid'] = core.loginInfo['BaseRequest']['Sid'] = node.childNodes[0].data
-    #     elif node.nodeName == 'wxuin':
-    #         core.loginInfo['wxuin'] = core.loginInfo['BaseRequest']['Uin'] = node.childNodes[0].data
-    #     elif node.nodeName == 'pass_ticket':
-    #         core.loginInfo['pass_ticket'] = core.loginInfo['BaseRequest']['DeviceID'] = node.childNodes[0].data
     if not all([key in core.loginInfo for key in ('skey', 'wxsid', 'wxuin', 'pass_ticket')]):
         logger.error(
             'Your wechat account may be LIMITED to log in WEB wechat, error info:\n%s' % r.text)
@@ -237,8 +234,10 @@ def web_init(self):
     headers = {
         'ContentType': 'application/json; charset=UTF-8',
         'User-Agent': config.USER_AGENT, }
+    print(url, json.dumps(data))
     r = self.s.post(url, params=params, data=json.dumps(data), headers=headers)
     dic = json.loads(r.content.decode('utf-8', 'replace'))
+    print("webwxinit response", dic)
     # deal with login info
     utils.emoji_formatter(dic['User'], 'NickName')
     self.loginInfo['InviteStartCount'] = int(dic['InviteStartCount'])
