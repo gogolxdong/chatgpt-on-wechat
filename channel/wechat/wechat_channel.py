@@ -164,7 +164,7 @@ class WechatChannel(ChatChannel):
             logger.info("[WX]receive voice for group msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.IMAGE:
             result = cmsg._prepare_fn()
-            logger.info("[WX]receive image for group msg: {}".format(result))
+            logger.info("[WX]receive image for group msg: {}".format(cmsg.content))
         elif cmsg.ctype in [ContextType.JOIN_GROUP, ContextType.PATPAT]:
             logger.info("[WX]receive note msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.TEXT:
