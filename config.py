@@ -28,13 +28,13 @@ available_setting = {
     "group_chat_reply_suffix": "",   # 群聊时自动回复的后缀，\n 可以换行
     "group_chat_keyword": [],  # 群聊时包含该关键词则会触发机器人回复
     "group_at_off": False,  # 是否关闭群聊时@bot的触发
-    "group_name_white_list": ["ChatGPT测试群", "ChatGPT测试群2"],  # 开启自动回复的群名称列表
+    "group_name_white_list": ["ALL_GROUP"],  # 开启自动回复的群名称列表
     "group_name_keyword_white_list": [],  # 开启自动回复的群名称关键词列表
     "group_chat_in_one_session": ["ChatGPT测试群"],  # 支持会话上下文共享的群名称
     "trigger_by_self": False,  # 是否允许机器人触发
     "image_create_prefix": ["画", "看", "找"],  # 开启图片回复的前缀
     "concurrency_in_session": 1,  # 同一会话最多有多少条消息在处理中，大于1可能乱序
-    "image_create_size": "256x256",  # 图片大小,可选有 256x256, 512x512, 1024x1024
+    "image_create_size": "512x512",  # 图片大小,可选有 256x256, 512x512, 1024x1024
     # chatgpt会话参数
     "expires_in_seconds": 3600,  # 无操作会话的过期时间
     "character_desc": "你是ChatGPT, 一个由OpenAI训练的大型语言模型, 你旨在回答并解决人们的任何问题，并且可以使用多种语言与人交流。",  # 人格描述

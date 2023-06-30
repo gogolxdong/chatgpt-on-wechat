@@ -161,16 +161,17 @@ class WechatChannel(ChatChannel):
         if cmsg.ctype == ContextType.VOICE:
             if conf().get("speech_recognition") != True:
                 return
-            logger.debug("[WX]receive voice for group msg: {}".format(cmsg.content))
+            logger.info("[WX]receive voice for group msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.IMAGE:
-            logger.debug("[WX]receive image for group msg: {}".format(cmsg.content))
+            result = cmsg._prepare_fn()
+            logger.info("[WX]receive image for group msg: {}".format(result))
         elif cmsg.ctype in [ContextType.JOIN_GROUP, ContextType.PATPAT]:
-            logger.debug("[WX]receive note msg: {}".format(cmsg.content))
+            logger.info("[WX]receive note msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.TEXT:
-            # logger.debug("[WX]receive group msg: {}, cmsg={}".format(json.dumps(cmsg._rawmsg, ensure_ascii=False), cmsg))
+            logger.info("[WX]receive group msg: {}".format(json.dumps(cmsg._rawmsg["Content"], ensure_ascii=False)))
             pass
         else:
-            logger.debug("[WX]receive group msg: {}".format(cmsg.content))
+            logger.info("[WX]receive group msg: {}".format(cmsg.content))
         context = self._compose_context(cmsg.ctype, cmsg.content, isgroup=True, msg=cmsg)
         if context:
             self.produce(context)
