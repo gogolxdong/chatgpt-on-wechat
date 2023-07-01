@@ -26,4 +26,4 @@ plugins/**/
 !plugins/role
 !plugins/keyword
 app
-chat.json
+*.json

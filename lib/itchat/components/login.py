@@ -254,10 +254,10 @@ def web_init(self):
     for m in contactList:
         if m['NickName'] == "测试二":
             self.loginInfo["toGroup"] = m['UserName']
-        if m['NickName'] == "同鑫缘":
+        if m['NickName'] == "Lasercat":
             self.loginInfo["fromUser1"] = m['UserName']
-        if m['NickName'] == "Derrick":
-            self.loginInfo["fromUser2"] = m['UserName'] 
+        # if m['NickName'] == "Derrick":
+            # self.loginInfo["fromUser2"] = m['UserName'] 
         if m['Sex'] != 0:
             otherList.append(m)
         elif '@@' in m['UserName']:

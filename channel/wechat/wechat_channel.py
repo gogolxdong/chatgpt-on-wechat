@@ -164,28 +164,42 @@ class WechatChannel(ChatChannel):
                 return
             logger.info("[WX]receive voice for group msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.IMAGE:
+            print(cmsg)
             result = cmsg.prepare()
-            if group_white_list in cmsg.from_user_nickname:
-                if cmsg.actual_user_id == itchat.instance.loginInfo['fromUser1'] or cmsg.actual_user_id == itchat.instance.loginInfo['fromUser2']:
-                    itchat.send_image(cmsg.content, toUserName=itchat.instance.loginInfo['toGroup'])
-                    itchat.send_msg("来自" + cmsg.from_user_nickname, toUserName=itchat.instance.loginInfo['toGroup'])
+            fromUser = cmsg.from_user_nickname+"_"+cmsg.actual_user_nickname
+            for white_list in group_white_list:
+                if white_list in cmsg.from_user_nickname:
+                    if cmsg.actual_user_id == itchat.instance.loginInfo['fromUser1'] :
+                        itchat.send_image(cmsg.content, toUserName=itchat.instance.loginInfo['toGroup'])
+                        itchat.send_msg("来自 " + fromUser, toUserName=itchat.instance.loginInfo['toGroup'])
             logger.info("[WX]receive image for group msg: {}".format(cmsg.content))
         elif cmsg.ctype in [ContextType.JOIN_GROUP, ContextType.PATPAT]:
             logger.info("[WX]receive note msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.TEXT:
-            if group_white_list in cmsg.from_user_nickname:
-                print(cmsg)
-                itchat.send("来自"+cmsg.from_user_nickname+":"+cmsg.content, toUserName=itchat.instance.loginInfo['toGroup'])
-                with open(f"{group_white_list}.json", 'a') as chat_file:
-                    chat_file.write(" ".join([cmsg.from_user_nickname, str(cmsg.create_time), cmsg.content]) + "\n")
-                # pattern = "0x[a-fA-F0-9]{40}"
-                # # print(itchat.instance.loginInfo)
-                # isHttps = "https://" in cmsg.content 
-                # isContractAddress = re.search(pattern, cmsg.content)
-                # if isHttps or isContractAddress or cmsg.actual_user_id == itchat.instance.loginInfo['fromUser1'] or cmsg.actual_user_id == itchat.instance.loginInfo['fromUser2']:
-                #     itchat.send("来自"+cmsg.from_user_nickname+":"+cmsg.content, toUserName=itchat.instance.loginInfo['toGroup'])
-                #     with open(f"group_white_list.json", 'a') as chat_file:
-                #         chat_file.write(" ".join([cmsg.from_user_nickname, str(cmsg.create_time), cmsg.content]) + "\n")
+            print(cmsg)
+            fromUser = cmsg.from_user_nickname+"_"+cmsg.actual_user_nickname
+            for white_list in group_white_list:
+                if white_list in cmsg.from_user_nickname:
+                    pattern = "0x[a-fA-F0-9]{40}"
+                    isHttps = "https://" in cmsg.content 
+                    isContractAddress = re.search(pattern, cmsg.content)
+                    needRecord = True
+                    messageType = "任意"
+                    # if isHttps:
+                    #     messageType = "含链接消息"
+                    #     needRecord = True
+                    # elif isContractAddress:
+                    #     messageType = "含合约地址消息"
+                    #     needRecord = True
+                    # elif cmsg.actual_user_id == itchat.instance.loginInfo['fromUser1']:
+                    #     needRecord = True
+                    #     messageType = "关键用户消息"
+
+                    if needRecord :
+                        itchat.send(f"【{cmsg.from_user_nickname}】\n【{cmsg.actual_user_nickname}】\n【{messageType}】\n【{cmsg.content}】\n", toUserName=itchat.instance.loginInfo['toGroup'])
+                        with open(f"{white_list}.json", 'a') as chat_file:
+                            chat_file.write(" ".join([fromUser, str(cmsg.create_time), cmsg.content]) + "\n")
+                
             logger.info("[WX]receive group msg: {}".format(json.dumps(cmsg._rawmsg["Content"], ensure_ascii=False)))
         else:
             logger.info("[WX]receive group msg: {}".format(cmsg.content))
