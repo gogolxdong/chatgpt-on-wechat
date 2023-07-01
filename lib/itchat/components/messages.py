@@ -491,6 +491,7 @@ def send_video(self, fileDir=None, toUserName=None, mediaId=None, file_=None):
     return ReturnValue(rawResponse=r)
 
 def send(self, msg, toUserName=None, mediaId=None):
+    print("send:", msg)
     if not msg:
         r = ReturnValue({'BaseResponse': {
             'ErrMsg': 'No message.',

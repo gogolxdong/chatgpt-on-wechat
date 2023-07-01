@@ -56,23 +56,24 @@ class ChatChannel(Channel):
                 group_name = cmsg.other_user_nickname
                 group_id = cmsg.other_user_id
                 print("group_name:", group_name, "group_id", group_id)
-                if group_name == "解读一":
+                if group_name == "测试一":
                     context["session_id"] = group_id
                     context["receiver"] = group_id
-                    pattern = "(\d+)(天|小时)"
-                    data = re.search(pattern, content)
-                    if data:
-                        print(data)
-                        now = datetime.now()
-                        if data.group(2) == "小时":
-                            start = now - timedelta(hours=int(data.group(1)))
-                        else:
-                            start = now - timedelta(hours=int(data.group(1)))
-                        with open('chat.json') as user_file:
-                            parsed_json = user_file.read()
-                            context.content = f"这段话冒号后面是最近的群消息，每行是一条群聊消息，以发送者、发送时间、群聊内容三部分空格隔开，对时间戳大于等于{start}的活跃主题进行总结，列出https链接：" + parsed_json
-                            print(context.content)
-                            self._handle(context)
+                    # pattern = "(\d+)(天|小时)"
+                    # data = re.search(pattern, content)
+                    # if data:
+                    #     print(data)
+                    #     now = datetime.now()
+                    #     if data.group(2) == "小时":
+                    #         start = now - timedelta(hours=int(data.group(1)))
+                    #     else:
+                    #         start = now - timedelta(hours=int(data.group(1)))
+                    #     with open('chat.json') as user_file:
+                    #         parsed_json = user_file.read()
+                    #         context.content = f"这段话冒号后面是最近的群消息，每行是一条群聊消息，以发送者、发送时间、群聊内容三部分空格隔开，对时间戳大于等于{start}的活跃主题进行总结，列出https链接：" + parsed_json
+                    #         print(context.content)
+                    #     self._handle(context)
+
                 # group_name_white_list = config.get("group_name_white_list", [])
                 # group_name_keyword_white_list = config.get("group_name_keyword_white_list", [])
                 # if any(
@@ -94,7 +95,7 @@ class ChatChannel(Channel):
                 else:
                     return None
                 context["session_id"] = session_id
-                context["receiver"] = group_id
+                # context["receiver"] = group_id
             else:
                 context["session_id"] = cmsg.other_user_id
                 context["receiver"] = cmsg.other_user_id

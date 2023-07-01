@@ -234,11 +234,10 @@ def web_init(self):
     headers = {
         'ContentType': 'application/json; charset=UTF-8',
         'User-Agent': config.USER_AGENT, }
-    print(url, json.dumps(data))
+    # print(url, json.dumps(data))
     r = self.s.post(url, params=params, data=json.dumps(data), headers=headers)
     dic = json.loads(r.content.decode('utf-8', 'replace'))
-    print("webwxinit response", dic)
-    # deal with login info
+    # print("webwxinit response", dic)
     utils.emoji_formatter(dic['User'], 'NickName')
     self.loginInfo['InviteStartCount'] = int(dic['InviteStartCount'])
     self.loginInfo['User'] = wrap_user_dict(
@@ -253,6 +252,12 @@ def web_init(self):
     contactList = dic.get('ContactList', [])
     chatroomList, otherList = [], []
     for m in contactList:
+        if m['NickName'] == "测试二":
+            self.loginInfo["toGroup"] = m['UserName']
+        if m['NickName'] == "同鑫缘":
+            self.loginInfo["fromUser1"] = m['UserName']
+        if m['NickName'] == "Derrick":
+            self.loginInfo["fromUser2"] = m['UserName'] 
         if m['Sex'] != 0:
             otherList.append(m)
         elif '@@' in m['UserName']:
