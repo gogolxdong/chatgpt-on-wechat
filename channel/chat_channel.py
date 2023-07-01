@@ -4,7 +4,7 @@ import threading
 import time
 from asyncio import CancelledError
 from concurrent.futures import Future, ThreadPoolExecutor
-
+import json
 from bridge.context import *
 from bridge.reply import *
 from channel.channel import Channel
@@ -12,6 +12,7 @@ from common.dequeue import Dequeue
 from common.log import logger
 from config import conf
 from plugins import *
+from datetime import datetime, timedelta
 
 try:
     from voice.audio_convert import any_to_wav
@@ -54,25 +55,42 @@ class ChatChannel(Channel):
             if context.get("isgroup", False):
                 group_name = cmsg.other_user_nickname
                 group_id = cmsg.other_user_id
-
-                group_name_white_list = config.get("group_name_white_list", [])
-                group_name_keyword_white_list = config.get("group_name_keyword_white_list", [])
-                if any(
-                    [
-                        group_name in group_name_white_list,
-                        "ALL_GROUP" in group_name_white_list,
-                        check_contain(group_name, group_name_keyword_white_list),
-                    ]
-                ):
-                    group_chat_in_one_session = conf().get("group_chat_in_one_session", [])
-                    session_id = cmsg.actual_user_id
-                    if any(
-                        [
-                            group_name in group_chat_in_one_session,
-                            "ALL_GROUP" in group_chat_in_one_session,
-                        ]
-                    ):
-                        session_id = group_id
+                print("group_name:", group_name, "group_id", group_id)
+                if group_name == "解读一":
+                    context["session_id"] = group_id
+                    context["receiver"] = group_id
+                    pattern = "(\d+)(天|小时)"
+                    data = re.search(pattern, content)
+                    if data:
+                        print(data)
+                        now = datetime.now()
+                        if data.group(2) == "小时":
+                            start = now - timedelta(hours=int(data.group(1)))
+                        else:
+                            start = now - timedelta(hours=int(data.group(1)))
+                        with open('chat.json') as user_file:
+                            parsed_json = user_file.read()
+                            context.content = f"这段话冒号后面是最近的群消息，每行是一条群聊消息，以发送者、发送时间、群聊内容三部分空格隔开，对时间戳大于等于{start}的活跃主题进行总结，列出https链接：" + parsed_json
+                            print(context.content)
+                            self._handle(context)
+                # group_name_white_list = config.get("group_name_white_list", [])
+                # group_name_keyword_white_list = config.get("group_name_keyword_white_list", [])
+                # if any(
+                #     [
+                #         group_name in group_name_white_list,
+                #         "ALL_GROUP" in group_name_white_list,
+                #         check_contain(group_name, group_name_keyword_white_list),
+                #     ]
+                # ):
+                #     group_chat_in_one_session = conf().get("group_chat_in_one_session", [])
+                #     session_id = cmsg.actual_user_id
+                #     if any(
+                #         [
+                #             group_name in group_chat_in_one_session,
+                #             "ALL_GROUP" in group_chat_in_one_session,
+                #         ]
+                #     ):
+                    session_id = group_id
                 else:
                     return None
                 context["session_id"] = session_id
@@ -166,33 +184,6 @@ class ChatChannel(Channel):
                 context["generate_breaked_by"] = e_context["breaked_by"]
             if context.type == ContextType.TEXT or context.type == ContextType.IMAGE_CREATE:  # 文字和图片消息
                 reply = super().build_reply_content(context.content, context)
-            elif context.type == ContextType.VOICE:  # 语音消息
-                cmsg = context["msg"]
-                cmsg.prepare()
-                file_path = context.content
-                wav_path = os.path.splitext(file_path)[0] + ".wav"
-                try:
-                    any_to_wav(file_path, wav_path)
-                except Exception as e:  # 转换失败，直接使用mp3，对于某些api，mp3也可以识别
-                    logger.warning("[WX]any to wav error, use raw path. " + str(e))
-                    wav_path = file_path
-                # 语音识别
-                reply = super().build_voice_to_text(wav_path)
-                # 删除临时文件
-                try:
-                    os.remove(file_path)
-                    if wav_path != file_path:
-                        os.remove(wav_path)
-                except Exception as e:
-                    pass
-                    # logger.warning("[WX]delete temp file error: " + str(e))
-
-                if reply.type == ReplyType.TEXT:
-                    new_context = self._compose_context(ContextType.TEXT, reply.content, **context.kwargs)
-                    if new_context:
-                        reply = self._generate_reply(new_context)
-                    else:
-                        return
             elif context.type == ContextType.IMAGE:  # 图片消息，当前无默认逻辑
                 pass
             else:

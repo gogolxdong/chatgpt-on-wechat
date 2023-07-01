@@ -10,78 +10,34 @@ var r= fetch(&"{baseUrl}/jslogin?appid=wx782c26e4c19acffb&fun=new&redirect_uri=h
 
 var loginInfo = %*{"BaseRequest": {"Skey":"","Uin":"","Sid":""}}
 
-var logged = false
+var isLoggedIn = false
 
-proc checkLogin(uuid:string) = 
-    {.gcsafe.}:
-        var loginUrl = &"{baseUrl}/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid={uuid}"
-        var client = newHttpClient(maxRedirects = 0)
-        defer: client.close()
-        while not logged:
-            var loginResult = fetch(loginUrl)
-            var lines = loginResult.splitLines
-            if lines.len == 2 and lines[1] =~ re"""window.redirect_uri="(\S+)";""":
-                echo matches
-                var redirectUrl = matches[0]
-                var redirectHeaders =  @[("User-Agent",USER_AGENT),("client-version",UOS_PATCH_CLIENT_VERSION),("extspam",UOS_PATCH_EXTSPAM),("referer", "https://wx.qq.com/?&lang=zh_CN&target=t")]
-                var loginResponse = client.request(redirectUrl, headers= newHttpHeaders redirectHeaders)
-                var loginBody = loginResponse.body
-                echo "loginBody:", loginBody, " ", loginResponse.headers
-                var wxsid = ""
-                var wxuin = ""
-                for k in  loginResponse.headers.table["set-cookie"]:
-                    if k =~ re"wxsid=(\S+);.*":
-                        wxsid= matches[0]
-                    if k =~ re"wxuin=(\d+);.*":
-                        wxuin = matches[0]
-        
-                var skey:array[1,string]
-                discard loginBody.match(re".*<skey>(.*?)</skey>.*", skey)
-                echo "skey:", skey[0]
-                loginInfo["BaseRequest"]["Skey"] = if skey.len != 0 : %skey[0] else: %""
-                loginInfo["BaseRequest"]["Uin"] = %wxuin
-                loginInfo["BaseRequest"]["Sid"] = %wxsid
+template webInit() :untyped {.dirty.} = 
+    var now = now().toTime().toUnix()
+    var webInitUrl = &"{syncUrl}/webwxinit?r={now}&pass_ticket={passTicket[0]}"
+    echo "webInitUrl:",webInitUrl
+    var initHeader = @[("ContentType", "application/json; charset=UTF-8"), ("User-Agent", USER_AGENT)]
+    var data = %*{"BaseRequest": loginInfo["BaseRequest"]}
+    var requestBody = $ data
+    
+    var initResponse = client.request(webInitUrl, HttpPost, body = requestBody, headers = initHeader.newHttpHeaders)
+    var initBody = parseJson initResponse.body
 
-                loginInfo{"skey"} = %skey[0]
-                loginInfo{"wxuin"} = %wxuin
-                loginInfo{"wxsid"} = %wxsid
+    var contactList = initBody["ContactList"]
 
-                var passTicket:array[1,string]
-                discard loginBody.match(re".*<pass_ticket>(.*?)</pass_ticket>.*", passTicket)
-                loginInfo["passTicket"] = if passTicket.len != 0 : %passTicket[0] else: %""
-                var syncUrl = redirectUrl.substr(0, redirectUrl.rfind("/")-1)
-                loginInfo{"syncUrl"} = %syncUrl
-                loginInfo{"fileUrl"} = %syncUrl
-                echo "syncUrl:",syncUrl
-            
-                var now = now().toTime().toUnix()
-                var webInitUrl = &"{syncUrl}/webwxinit?r={now}&pass_ticket={passTicket[0]}"
-                echo "webInitUrl:",webInitUrl
-                var initHeader = @[("ContentType", "application/json; charset=UTF-8"), ("User-Agent", USER_AGENT)]
-                var data = %*{"BaseRequest": loginInfo["BaseRequest"]}
-                var requestBody = $ data
-                
-                var initResponse = client.request(webInitUrl, HttpPost, body = requestBody, headers = initHeader.newHttpHeaders)
-                var initBody = parseJson initResponse.body
-                echo "initBody:",initBody
+    var chootRoom = newJArray()
+    for c in contactList:
+        if "@@" in c["UserName"].getStr:
+            chootRoom.add c
 
-                var contactList = initBody["ContactList"]
-            
-                var chootRoom = newJArray()
-                for c in contactList:
-                    if "@@" in c["UserName"].getStr:
-                        chootRoom.add c
+    loginInfo{"InviteStartCount"} = initBody["InviteStartCount"]
+    loginInfo{"User"} = initBody["User"]
+    loginInfo{"SyncKey"} = initBody["SyncKey"]
+    var syncKeys = initBody["SyncKey"]["List"].mapIt($(it["Key"].getInt) & "_" & $(it["Val"].getInt)).join("|")
+    loginInfo{"synckey"} = %syncKeys
 
-                loginInfo{"InviteStartCount"} = initBody["InviteStartCount"]
-                loginInfo{"User"} = initBody["User"]
-                loginInfo{"SyncKey"} = initBody["SyncKey"]
-                echo "loginInfo:", loginInfo
-                var syncKeys = initBody["SyncKey"]["List"].mapIt($(it["Key"].getInt) & "_" & $(it["Val"].getInt)).join("|")
-                loginInfo{"synckey"} = %syncKeys
-                logged = true
-            sleep(1000)
+template syncCheck() :untyped {.dirty.} = 
         while true:
-            # echo "syncCheck:", loginInfo
             var syncUrl = loginInfo{"syncUrl"}.getStr
             var wxsid = loginInfo{"wxsid"}.getStr
             var skey = loginInfo{"skey"}.getStr
@@ -120,8 +76,17 @@ proc checkLogin(uuid:string) =
                 var actualOpposite:JsonNode
                 for m in syncBody["AddMsgList"]:
                     var msgType = m["MsgType"].getInt
-                    if msgType in [1,3]:
-                        echo m
+                    if msgType in [1,3, 47]:
+                        echo "msgType:",m
+                        if msgType in [3,47]:
+                            var msgId = m["NewMsgId"].getInt
+                            var downloadUrl = &"{syncUrl}/webwxgetmsgimg?msgid={msgId}&skey={skey}"
+                            echo downloadUrl
+                            var headers = @[ ("User-Agent", USER_AGENT)]
+                            var downloadResponse = client.request(downloadUrl, HttpGet, headers = headers.newHttpHeaders)
+                            echo "downloadResponse:",downloadResponse.body, " ", downloadResponse.code
+                            if downloadResponse.code == Http200:
+                                writeFile(&"/tmp/{msgId}", downloadResponse.body)
                         var fromUserName = m["FromUserName"].getStr
                         var toUserName = m["ToUserName"].getStr
                         if  fromUserName == loginInfo["User"]["UserName"].getStr:
@@ -135,8 +100,56 @@ proc checkLogin(uuid:string) =
                         # elif fromUserName == loginInfo["User"]["UserName"].getStr:
                 client.close
 
-
             sleep(1000)
+
+proc checkLogin(uuid:string) = 
+    {.gcsafe.}:
+        var loginUrl = &"{baseUrl}/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid={uuid}"
+        var client = newHttpClient(maxRedirects = 0)
+        defer: client.close()
+        while not isLoggedIn:
+            var loginResult = fetch(loginUrl)
+            var lines = loginResult.splitLines
+            if lines.len == 2 and lines[1] =~ re"""window.redirect_uri="(\S+)";""":
+                echo matches
+                var redirectUrl = matches[0]
+                var redirectHeaders =  @[("User-Agent",USER_AGENT),("client-version",UOS_PATCH_CLIENT_VERSION),("extspam",UOS_PATCH_EXTSPAM),("referer", "https://wx.qq.com/?&lang=zh_CN&target=t")]
+                var loginResponse = client.request(redirectUrl, headers= newHttpHeaders redirectHeaders)
+                var loginBody = loginResponse.body
+                echo "loginBody:", loginBody, " ", loginResponse.headers
+                var wxsid = ""
+                var wxuin = ""
+                for k in  loginResponse.headers.table["set-cookie"]:
+                    if k =~ re"wxsid=(\S+);.*":
+                        wxsid= matches[0]
+                    if k =~ re"wxuin=(\d+);.*":
+                        wxuin = matches[0]
+        
+                var skey:array[1,string]
+                discard loginBody.match(re".*<skey>(.*?)</skey>.*", skey)
+                echo "skey:", skey[0]
+                loginInfo["BaseRequest"]["Skey"] = if skey.len != 0 : %skey[0] else: %""
+                loginInfo["BaseRequest"]["Uin"] = %wxuin
+                loginInfo["BaseRequest"]["Sid"] = %wxsid
+
+                loginInfo{"skey"} = %skey[0]
+                loginInfo{"wxuin"} = %wxuin
+                loginInfo{"wxsid"} = %wxsid
+
+                var passTicket:array[1,string]
+                discard loginBody.match(re".*<pass_ticket>(.*?)</pass_ticket>.*", passTicket)
+                loginInfo["passTicket"] = if passTicket.len != 0 : %passTicket[0] else: %""
+                var syncUrl = redirectUrl.substr(0, redirectUrl.rfind("/")-1)
+                loginInfo{"syncUrl"} = %syncUrl
+                loginInfo{"fileUrl"} = %syncUrl
+                loginInfo{"url"} = %syncUrl
+                echo "syncUrl:",syncUrl
+                isLoggedIn = true
+            
+                webInit()
+            sleep(1000)
+
+        syncCheck()
 
 
 proc main =
@@ -145,9 +158,8 @@ proc main =
         var uuid = matches[1]
         var task = TaskPool.new()
         task.spawn checkLogin(uuid)
-        # task.spawn syncCheck()
         var qrcode = &"{baseUrl}/l/" & uuid
-        echo qrcode
+        echo "qrcode:",qrcode
         let myQR = newQR(qrcode)
         myQR.printTerminal
 main()

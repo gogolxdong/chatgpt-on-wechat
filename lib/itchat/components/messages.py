@@ -89,8 +89,9 @@ def produce_msg(core, msgList):
                     'Type': 'Text',
                     'Text': m['Content'],}
         elif m['MsgType'] == 3 or m['MsgType'] == 47: # picture
-            download_fn = get_download_fn(core,
-                '%s/webwxgetmsgimg' % core.loginInfo['url'], m['NewMsgId'])
+            download_url = '%s/webwxgetmsgimg' % core.loginInfo['url']
+            print(download_url)
+            download_fn = get_download_fn(core, download_url, m['NewMsgId'])
             msg = {
                 'Type'     : 'Picture',
                 'FileName' : '%s.%s' % (time.strftime('%y%m%d-%H%M%S', time.localtime()),
@@ -225,6 +226,8 @@ def produce_msg(core, msgList):
     return rl
 
 def produce_group_chat(core, msg):
+    if msg["MsgType"] in [1,3,47]:
+        print(msg)
     r = re.match('(@[0-9a-z]*?):<br/>(.*)$', msg['Content'])
     if r:
         actualUserName, content = r.groups()

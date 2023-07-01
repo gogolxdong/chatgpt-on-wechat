@@ -64,7 +64,7 @@ class ChatMessage(object):
     def prepare(self):
         if self._prepare_fn and not self._prepared:
             self._prepared = True
-            self._prepare_fn()
+            return self._prepare_fn()
 
     def __str__(self):
         return "ChatMessage: id={}, create_time={}, ctype={}, content={}, from_user_id={}, from_user_nickname={}, to_user_id={}, to_user_nickname={}, other_user_id={}, other_user_nickname={}, is_group={}, is_at={}, actual_user_id={}, actual_user_nickname={}".format(

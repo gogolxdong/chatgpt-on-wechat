@@ -23,7 +23,7 @@ from common.time_check import time_checker
 from config import conf, get_appdata_dir
 from lib import itchat
 from lib.itchat.content import *
-
+import openai
 
 @itchat.msg_register([TEXT, VOICE, PICTURE, NOTE])
 def handler_single_msg(msg):
@@ -163,13 +163,18 @@ class WechatChannel(ChatChannel):
                 return
             logger.info("[WX]receive voice for group msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.IMAGE:
-            result = cmsg._prepare_fn()
+            result = cmsg.prepare()
             logger.info("[WX]receive image for group msg: {}".format(cmsg.content))
         elif cmsg.ctype in [ContextType.JOIN_GROUP, ContextType.PATPAT]:
             logger.info("[WX]receive note msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.TEXT:
+            print("cmsg:",cmsg)
+            if cmsg.to_user_nickname == "测试一" or cmsg.from_user_nickname == "测试一":
+                with open("chat.json", 'a') as chat_file:
+                    chat_file.write(" ".join([cmsg.from_user_nickname, str(cmsg.create_time), cmsg.content]) + "\n")
+            else:
+                pass
             logger.info("[WX]receive group msg: {}".format(json.dumps(cmsg._rawmsg["Content"], ensure_ascii=False)))
-            pass
         else:
             logger.info("[WX]receive group msg: {}".format(cmsg.content))
         context = self._compose_context(cmsg.ctype, cmsg.content, isgroup=True, msg=cmsg)
