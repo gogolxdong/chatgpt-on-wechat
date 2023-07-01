@@ -158,32 +158,34 @@ class WechatChannel(ChatChannel):
     @time_checker
     @_check
     def handle_group(self, cmsg: ChatMessage):
+        group_white_list = conf().get("group_name_white_list", "测试一")
         if cmsg.ctype == ContextType.VOICE:
             if conf().get("speech_recognition") != True:
                 return
             logger.info("[WX]receive voice for group msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.IMAGE:
             result = cmsg.prepare()
-            print(result)
-            if cmsg.to_user_nickname == "测试一" or cmsg.from_user_nickname == "测试一":
-                print(cmsg)
+            if group_white_list in cmsg.from_user_nickname:
                 if cmsg.actual_user_id == itchat.instance.loginInfo['fromUser1'] or cmsg.actual_user_id == itchat.instance.loginInfo['fromUser2']:
                     itchat.send_image(cmsg.content, toUserName=itchat.instance.loginInfo['toGroup'])
+                    itchat.send_msg("来自" + cmsg.from_user_nickname, toUserName=itchat.instance.loginInfo['toGroup'])
             logger.info("[WX]receive image for group msg: {}".format(cmsg.content))
         elif cmsg.ctype in [ContextType.JOIN_GROUP, ContextType.PATPAT]:
             logger.info("[WX]receive note msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.TEXT:
-            if cmsg.to_user_nickname == "测试一" or cmsg.from_user_nickname == "测试一":
+            if group_white_list in cmsg.from_user_nickname:
                 print(cmsg)
-                pattern = "0x[a-fA-F0-9]{40}"
-                
-                print(itchat.instance.loginInfo)
-                isHttps = "https://" in cmsg.content 
-                isContractAddress = re.search(pattern, cmsg.content)
-                if isHttps or isContractAddress or cmsg.actual_user_id == itchat.instance.loginInfo['fromUser1'] or cmsg.actual_user_id == itchat.instance.loginInfo['fromUser2']:
-                    itchat.send(cmsg.content, toUserName=itchat.instance.loginInfo['toGroup'])
-                    with open("chat.json", 'a') as chat_file:
-                        chat_file.write(" ".join([cmsg.from_user_nickname, str(cmsg.create_time), cmsg.content]) + "\n")
+                itchat.send("来自"+cmsg.from_user_nickname+":"+cmsg.content, toUserName=itchat.instance.loginInfo['toGroup'])
+                with open(f"{group_white_list}.json", 'a') as chat_file:
+                    chat_file.write(" ".join([cmsg.from_user_nickname, str(cmsg.create_time), cmsg.content]) + "\n")
+                # pattern = "0x[a-fA-F0-9]{40}"
+                # # print(itchat.instance.loginInfo)
+                # isHttps = "https://" in cmsg.content 
+                # isContractAddress = re.search(pattern, cmsg.content)
+                # if isHttps or isContractAddress or cmsg.actual_user_id == itchat.instance.loginInfo['fromUser1'] or cmsg.actual_user_id == itchat.instance.loginInfo['fromUser2']:
+                #     itchat.send("来自"+cmsg.from_user_nickname+":"+cmsg.content, toUserName=itchat.instance.loginInfo['toGroup'])
+                #     with open(f"group_white_list.json", 'a') as chat_file:
+                #         chat_file.write(" ".join([cmsg.from_user_nickname, str(cmsg.create_time), cmsg.content]) + "\n")
             logger.info("[WX]receive group msg: {}".format(json.dumps(cmsg._rawmsg["Content"], ensure_ascii=False)))
         else:
             logger.info("[WX]receive group msg: {}".format(cmsg.content))
